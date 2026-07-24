@@ -21,9 +21,9 @@ function GroupCard({ id, docId, nome, integrantes, progresso, podeExcluir, onExc
                     title="Excluir grupo"
                     style={{
                         position: "absolute",
-                        top: "12px",
-                        right: "12px",
-                        background: "transparent",
+                        top: "16px",
+                        right: "16px",
+                        background: "none",
                         border: "none",
                         cursor: "pointer",
                         fontSize: "1.2rem",
@@ -36,7 +36,9 @@ function GroupCard({ id, docId, nome, integrantes, progresso, podeExcluir, onExc
                 </button>
             )}
 
-            <h2>{nome}</h2>
+            <h2 style={{ paddingRight: podeExcluir ? "35px" : "0px", marginTop: 0 }}>
+                {nome}
+            </h2>
             <p><strong>Integrantes:</strong> {integrantes}</p>
             <p><strong>Progresso:</strong> {progresso}%</p>
             <div className="progress">
