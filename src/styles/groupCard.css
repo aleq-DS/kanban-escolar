@@ -1,80 +1,76 @@
-.group-card{
-
-    width:280px;
-
-    background:white;
-
-    border-radius:12px;
-
-    padding:20px;
-
-    box-shadow:0 3px 10px rgba(0,0,0,.15);
-
-    transition:.3s;
-
+.group-card {
+    position: relative; /* Ponto de ancoragem para a lixeira */
+    width: 280px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.15);
+    transition: .3s;
 }
 
-.group-card:hover{
-
-    transform:translateY(-5px);
-
+.group-card:hover {
+    transform: translateY(-5px);
 }
 
-.group-card h2{
-
-    color:#1565C0;
-
-    margin-bottom:15px;
-
+.group-card h2 {
+    color: #1565C0;
+    margin-bottom: 15px;
+    padding-right: 25px; /* Evita que o nome do grupo encoste na lixeira */
+    font-size: 1.25rem;
 }
 
-.group-card p{
-
-    margin:8px 0;
-
+.group-card p {
+    margin: 8px 0;
 }
 
-.group-card button{
-
-    margin-top:20px;
-
-    width:100%;
-
-    padding:10px;
-
-    border:none;
-
-    border-radius:8px;
-
-    background:#1565C0;
-
-    color:white;
-
-    cursor:pointer;
-
-}
-.progress{
-
-    width:100%;
-
-    height:12px;
-
-    background:#ddd;
-
-    border-radius:20px;
-
-    margin-top:10px;
-
-    overflow:hidden;
-
+/* Botão da Lixeira (Canto Superior Direito) */
+.btn-deletar {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: transform 0.2s ease;
 }
 
-.progress-bar{
+.btn-deletar:hover {
+    transform: scale(1.2);
+}
 
-    height:100%;
+/* Botão Principal ("Abrir") */
+.group-card .btn-abrir {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #1565C0;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
 
-    background:#4CAF50;
+.group-card .btn-abrir:hover {
+    background: #0d47a1;
+}
 
-    transition:0.5s;
+/* Barra de Progresso */
+.progress {
+    width: 100%;
+    height: 12px;
+    background: #ddd;
+    border-radius: 20px;
+    margin-top: 10px;
+    overflow: hidden;
+}
 
+.progress-bar {
+    height: 100%;
+    background: #4CAF50;
+    transition: 0.5s;
 }
