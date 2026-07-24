@@ -11,7 +11,8 @@ import useKanban from "../hooks/useKanban";
 import "../styles/kanban.css";
 
 function Kanban() {
-    const { id } = useParams(); // Traz o ID composto (ex: paulo-mendes_1)
+    // Pegamos o grupoDocId diretamente da URL configurada no App.jsx
+    const { grupoDocId } = useParams(); 
     const { usuario } = useAuth();
     
     const {
@@ -21,9 +22,9 @@ function Kanban() {
         setTarefaSelecionada,
         adicionarTarefa,
         atualizarTarefa,
-        atualizarNomeGrupo, // <-- Extraído diretamente do hook para escopo global do componente
+        atualizarNomeGrupo,
         carregando
-    } = useKanban(id);
+    } = useKanban(grupoDocId);
 
     const [editandoNome, setEditandoNome] = useState(false);
     const [novoNomeProjeto, setNovoNomeProjeto] = useState("");
@@ -55,13 +56,17 @@ function Kanban() {
         );
     }
 
-    // Permissão: Professor ou Líder do respectivo grupo
-    const podeEditarNome = usuario?.perfil === "professor" || 
-        (usuario?.perfil === "lider" && String(usuario?.grupoId) === String(id));
+    // Permissão: Superadmin, Professor ou Líder do respectivo grupo
+    const podeEditarNome = 
+        usuario?.perfil === "superadmin" ||
+        usuario?.perfil === "professor" || 
+        (usuario?.perfil === "lider" && (
+            String(usuario?.grupoId) === String(grupoDocId) || 
+            String(usuario?.grupoId) === String(grupo?.id)
+        ));
 
     function salvarNomeProjeto() {
         if (novoNomeProjeto.trim() !== "") {
-            // Invoca a função do hook que atualiza o Firestore usando o ID composto
             atualizarNomeGrupo(novoNomeProjeto);
             setEditandoNome(false);
         }
@@ -116,7 +121,6 @@ function Kanban() {
                     {columns.map((coluna) => (
                         <KanbanColumn key={coluna.id} titulo={coluna.titulo}>
                             {listaTarefas
-                                // CORRIGIDO: de column.status para coluna.status
                                 .filter((tarefa) => tarefa.status === coluna.status)
                                 .map((tarefa) => (
                                     <TaskCard key={tarefa.id} tarefa={tarefa} selecionar={setTarefaSelecionada} />

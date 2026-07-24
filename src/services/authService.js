@@ -1,4 +1,4 @@
-import { auth, db } from "../firebase/firebaseConfig"; // Certifique-se de que o caminho do seu arquivo firebase.js está correto
+import { auth, db } from "../firebase/firebaseConfig";
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
@@ -6,41 +6,75 @@ import {
     GoogleAuthProvider, 
     signOut 
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 
 const provider = new GoogleAuthProvider();
 
-// Busca o e-mail do professor definido no seu arquivo .env
-// 1. Pega a string do .env, converte para minúsculas, separa por vírgula e remove espaços extras
-const EMAILS_PROFESSORES = (import.meta.env.VITE_PROFESSOR_EMAIL || "")
+const EMAIL_SUPERADMIN = import.meta.env.VITE_SUPERADMIN_EMAIL?.toLowerCase();
+const rawProfsEnv = import.meta.env.VITE_PROFESSORES_EMAILS || import.meta.env.VITE_PROFESSOR_EMAIL || "";
+const EMAILS_PROFESSORES = rawProfsEnv
     .toLowerCase()
     .split(",")
-    .map(email => email.trim());
+    .map(email => email.trim())
+    .filter(Boolean);
 
-/**
- * Função auxiliar para criar/atualizar o perfil do usuário no Firestore
- * Garante a regra: se o e-mail for igual ao do .env, vira 'professor', senão vira 'aluno'
- */
 const salvarPerfilNoFirestore = async (user, nomeCustomizado = null) => {
     const userRef = doc(db, "usuarios", user.uid);
     const docSnap = await getDoc(userRef);
+    const emailUser = user.email.toLowerCase();
 
-    // Se o usuário já existe no banco, não sobrescrevemos (para não perder o cargo de líder, por exemplo)
-    if (docSnap.exists()) {
-        return docSnap.data();
+    let papelEsperado = "aluno";
+    if (emailUser === EMAIL_SUPERADMIN) {
+        papelEsperado = "superadmin";
+    } else if (EMAILS_PROFESSORES.includes(emailUser)) {
+        papelEsperado = "professor";
     }
 
-    const emailUser = user.email.toLowerCase();
-    // Regra de segurança baseada no seu .env
-    // 2. Agora checa se o e-mail do usuário está DENTRO da lista de professores
-    const ehProfessor = EMAILS_PROFESSORES.includes(emailUser);
+    if (docSnap.exists()) {
+        const dadosExistentes = docSnap.data();
+        const papelAtual = dadosExistentes.papel || dadosExistentes.perfil;
+
+        if (papelAtual !== papelEsperado && papelEsperado !== "aluno") {
+            const atualizacao = { 
+                papel: papelEsperado,
+                perfil: papelEsperado 
+            };
+            
+            if (papelEsperado === "superadmin") {
+                atualizacao.status = "aprovado";
+                atualizacao.escolaId = "TODAS";
+            }
+
+            if (!dadosExistentes.nome) {
+                atualizacao.nome = user.displayName || "Usuário";
+            }
+
+            await updateDoc(userRef, atualizacao);
+            return { ...dadosExistentes, ...atualizacao };
+        }
+
+        return dadosExistentes;
+    }
+
+    const nomeFinal = nomeCustomizado || user.displayName || (
+        papelEsperado === "professor" ? "Professor(a)" : 
+        papelEsperado === "superadmin" ? "Super Admin" : "Estudante"
+    );
+
+    const ehSuperAdmin = papelEsperado === "superadmin";
 
     const dadosPerfil = {
         uid: user.uid,
-        nome: nomeCustomizado || user.displayName || "Estudante",
+        nome: nomeFinal,
         email: user.email,
-        perfil: ehProfessor ? "professor" : "aluno", // 'professor', 'aluno' ou 'lider'
-        grupoId: null // O professor atribuirá isso depois para os alunos
+        papel: papelEsperado,
+        perfil: papelEsperado,
+        status: ehSuperAdmin ? "aprovado" : "pendente",
+        escolaSolicitadaId: null,
+        escolaId: ehSuperAdmin ? "TODAS" : null,
+        escolas: ehSuperAdmin ? ["TODAS"] : [],
+        grupoId: null,
+        criadoEm: new Date().toISOString()
     };
 
     await setDoc(userRef, dadosPerfil);
@@ -48,51 +82,25 @@ const salvarPerfilNoFirestore = async (user, nomeCustomizado = null) => {
 };
 
 export const authService = {
-    // 1. Cadastro com E-mail e Senha
     cadastrarComEmail: async (nome, email, senha) => {
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
-            const perfil = await salvarPerfilNoFirestore(userCredential.user, nome);
-            return { user: userCredential.user, perfil };
-        } catch (error) {
-            console.error("Erro no cadastro:", error);
-            throw error;
-        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+        const perfil = await salvarPerfilNoFirestore(userCredential.user, nome);
+        return { user: userCredential.user, perfil };
     },
 
-    // 2. Login com E-mail e Senha
     loginComEmail: async (email, senha) => {
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, senha);
-            // Busca o perfil do Firestore para sabermos a permissão dele
-            const userRef = doc(db, "usuarios", userCredential.user.uid);
-            const docSnap = await getDoc(userRef);
-            return { user: userCredential.user, perfil: docSnap.data() };
-        } catch (error) {
-            console.error("Erro no login por e-mail:", error);
-            throw error;
-        }
+        const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+        const perfil = await salvarPerfilNoFirestore(userCredential.user);
+        return { user: userCredential.user, perfil };
     },
 
-    // 3. Login / Cadastro rápido com o Google
     loginComGoogle: async () => {
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const perfil = await salvarPerfilNoFirestore(result.user);
-            return { user: result.user, perfil };
-        } catch (error) {
-            console.error("Erro no login com Google:", error);
-            throw error;
-        }
+        const result = await signInWithPopup(auth, provider);
+        const perfil = await salvarPerfilNoFirestore(result.user);
+        return { user: result.user, perfil };
     },
 
-    // 4. Logout
     deslogar: async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error("Erro ao deslogar:", error);
-            throw error;
-        }
+        await signOut(auth);
     }
 };

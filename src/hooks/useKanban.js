@@ -68,7 +68,7 @@ export default function useKanban(id) {
         }
 
         const novaTarefaCompleta = {
-            grupo: String(grupo.id), // Garante salvamento como string compatível com as abas
+            grupo: String(grupo?.id || id), // Garante salvamento como string compatível com as abas
             status: "todo",
             aprovado: false,
             comentarioProfessor: "",

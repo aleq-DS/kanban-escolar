@@ -17,7 +17,7 @@ export const taskService = {
         try {
             const tarefasRef = collection(db, COLECAO_TAREFAS);
             
-            // Tentamos buscar como número E como string para não quebrar nenhum grupo legada
+            // Busca por String (padrão atual)
             const qString = query(tarefasRef, where("grupo", "==", String(grupoId)));
             const snapshotString = await getDocs(qString);
             
@@ -26,6 +26,7 @@ export const taskService = {
                 tarefas.push({ id: doc.id, ...doc.data() });
             });
 
+            // Fallback para grupos legados salvos como Number
             if (tarefas.length === 0 && !isNaN(grupoId)) {
                 const qNum = query(tarefasRef, where("grupo", "==", Number(grupoId)));
                 const snapshotNum = await getDocs(qNum);
@@ -41,15 +42,14 @@ export const taskService = {
         }
     },
 
-    // 2. Salvar sem validações complexas (Criação limpa e leve)
+    // 2. Salvar (Criação leve e rápida)
     salvar: async (novaTarefa) => {
         try {
             const tarefasRef = collection(db, COLECAO_TAREFAS);
-            const { id, ...dadosParaSalvar } = novaTarefa; // Remove o id temporário local
+            const { id, ...dadosParaSalvar } = novaTarefa; // Descarta id local/temporário
             
             const docRef = await addDoc(tarefasRef, dadosParaSalvar);
             
-            // Retorna o ID REAL gerado pelo Firestore para o useKanban mapear certo na memória
             return {
                 id: docRef.id,
                 ...dadosParaSalvar
@@ -60,22 +60,25 @@ export const taskService = {
         }
     },
 
-    // 3. ONDE DEVE FICAR A VALIDAÇÃO: Na Atualização Técnica!
+    // 3. Atualização com Validações Técnicas e Regras de Negócio
     atualizar: async (tarefaId, dadosAtualizados) => {
-        // Ignora checagens pesadas se for apenas uma movimentação de arrastar rápida (opcional),
-        // mas se os dados vierem do Modal, fazemos a validação rigorosa aqui:
+        // Validação 1: Responsável é obrigatório caso a tarefa saia do "A Fazer" (todo)
         if (dadosAtualizados.responsavel !== undefined) {
             const resp = dadosAtualizados.responsavel?.trim() || "";
-            if (!resp || resp.toLowerCase() === "a definir") {
-                throw new Error("Membro executando precisa ser um nome válido.");
+            const movendoParaOutraColuna = dadosAtualizados.status && dadosAtualizados.status !== "todo";
+
+            if ((!resp || resp.toLowerCase() === "a definir") && movendoParaOutraColuna) {
+                throw new Error("Defina um responsável válido antes de iniciar a tarefa.");
             }
         }
 
+        // Validação 2: Descrição não pode ser enviada vazia ou só com espaços
         if (dadosAtualizados.descricao !== undefined && !dadosAtualizados.descricao?.trim()) {
             throw new Error("A descrição do projeto/tarefa não pode ficar vazia.");
         }
 
-        if (dadosAtualizados.dataEntrega !== undefined && !dadosAtualizados.dataEntrega) {
+        // Validação 3: Data de entrega (Ajustada a condição para validar string vazia)
+        if (dadosAtualizados.dataEntrega !== undefined && !dadosAtualizados.dataEntrega?.trim()) {
             throw new Error("O prazo de entrega é obrigatório.");
         }
 
