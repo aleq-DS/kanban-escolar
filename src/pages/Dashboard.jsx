@@ -8,6 +8,9 @@ import {
   updateDoc,
   setDoc,
   deleteDoc,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 
 import Header from "../components/layout/Header";
@@ -60,7 +63,6 @@ function Dashboard() {
             if (prev && escolasData.some((e) => e.id === prev)) return prev;
             if (ehSuperAdmin) return escolasData[0].id;
             
-            // Garante que o professor comece em uma escola à qual pertence
             const primeiraDoProf = escolasData.find((e) =>
               usuario?.escolas?.includes(e.id) || e.id === usuario?.escolaId
             );
@@ -209,6 +211,53 @@ function Dashboard() {
     }
   };
 
+  // Função para excluir um grupo e reatribuir seus vínculos
+  const excluirGrupo = async (grupoDocId, nomeGrupo) => {
+    if (!ehProfessor) return;
+
+    const confirmacao = window.confirm(
+      `Tem certeza de que deseja excluir o grupo "${nomeGrupo}"?\n\nOs alunos vinculados a ele voltarão para o status PENDENTE.`
+    );
+
+    if (!confirmacao) return;
+
+    try {
+      // 1. Desvincula os estudantes associados a este grupo
+      const alunosDoGrupo = listaUsuarios.filter(
+        (u) => String(u.grupoId) === String(grupoDocId)
+      );
+
+      const promessasAlunos = alunosDoGrupo.map((aluno) =>
+        updateDoc(doc(db, "usuarios", aluno.uid), {
+          grupoId: null,
+          status: "pendente",
+          papel: "aluno",
+          perfil: "aluno",
+        })
+      );
+      await Promise.all(promessasAlunos);
+
+      // 2. Remove as tarefas atreladas ao grupo
+      const tarefasQuery = query(
+        collection(db, "tarefas"),
+        where("grupo", "==", String(grupoDocId))
+      );
+      const tarefasSnap = await getDocs(tarefasQuery);
+      const promessasTarefas = tarefasSnap.docs.map((tDoc) =>
+        deleteDoc(doc(db, "tarefas", tDoc.id))
+      );
+      await Promise.all(promessasTarefas);
+
+      // 3. Remove o documento do grupo
+      await deleteDoc(doc(db, "grupos", String(grupoDocId)));
+
+      alert("Grupo e suas associações foram removidos com sucesso!");
+    } catch (error) {
+      console.error("Erro ao excluir grupo:", error);
+      alert("Ocorreu um erro ao tentar excluir o grupo.");
+    }
+  };
+
   const atualizarAcessoAluno = useCallback(
     async (uid, novaEscolaId, novoGrupoDocId, tornarLider) => {
       try {
@@ -276,8 +325,6 @@ function Dashboard() {
     return listaGrupos.filter((g) => String(g.docId) === String(usuario?.grupoId));
   }, [listaGrupos, ehProfessor, escolaAtiva, usuario]);
 
-  // CORREÇÃO DO BUG DE VISIBILIDADE:
-  // Filtra alunos pendentes comparando String de ID da escola ativa corrente
   const alunosPendentes = useMemo(() => {
     return listaUsuarios.filter((usr) => {
       const papel = usr.papel || usr.perfil;
@@ -396,6 +443,8 @@ function Dashboard() {
                 nome={grupo.nome}
                 integrantes={`${contagemIntegrantesPorGrupo[String(grupo.docId)] || 0} estudante(s)`}
                 progresso={grupo.progresso}
+                podeExcluir={ehProfessor}
+                onExcluir={() => excluirGrupo(grupo.docId, grupo.nome)}
               />
             ))
           )}
