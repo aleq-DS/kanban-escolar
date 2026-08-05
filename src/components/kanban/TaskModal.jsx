@@ -33,23 +33,24 @@ function TaskModal({ tarefa, fechar, onSalvar }) {
     if (!tarefa) return null;
 
     // --- REGRAS DE PERMISSÃO EM VARIÁVEIS (ACL) ---
-    // MANTÉM OS MESMOS NOMES DE VARIÁVEIS, APENAS EXPANDINDO A VALIDAÇÃO
-    const perfilAtual = usuario?.perfil || usuario?.papel;
+    // Extrai o papel aceitando 'papel' ou 'perfil' e padroniza para minúsculo
+    const papelUsuario = String(usuario?.papel || usuario?.perfil || "").toLowerCase();
 
+    // Habilita a visão docente/admin para variações de admin, professor e superadmin
     const ehProfessor = 
-        perfilAtual === "professor" || 
-        perfilAtual === "teacher" || 
-        perfilAtual === "superAdmin" || 
-        perfilAtual === "admin";
+        papelUsuario.includes("prof") || 
+        papelUsuario.includes("teacher") || 
+        papelUsuario.includes("admin") || 
+        papelUsuario.includes("super");
 
-    const ehLider = perfilAtual === "lider" || perfilAtual === "leader";
+    const ehLider = papelUsuario.includes("lider") || papelUsuario.includes("leader");
 
     const ehAlunoComum = !ehProfessor && !ehLider;
 
-    // Regra: Criador (Professor/Admin) e Líder alteram prioridade e data a qualquer momento
+    // Regra: Criador (Professor/Admin) e Líder alteram prioridade e data
     const podeAlterarMetadados = ehProfessor || ehLider;
 
-    // Regra: Status pode ser alterado por todos, EXCETO mandar para "return" que é restrito ao Professor/Líder
+    // Regra: Status pode ser alterado por todos
     const podeAlterarStatusGeral = true; 
 
     async function lidarComSalvar() {
