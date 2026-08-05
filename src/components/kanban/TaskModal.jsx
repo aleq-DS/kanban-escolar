@@ -33,11 +33,20 @@ function TaskModal({ tarefa, fechar, onSalvar }) {
     if (!tarefa) return null;
 
     // --- REGRAS DE PERMISSÃO EM VARIÁVEIS (ACL) ---
-    const ehProfessor = usuario?.perfil === "professor";
-    const ehLider = usuario?.perfil === "lider";
-    const ehAlunoComum = usuario?.perfil === "aluno";
+    // MANTÉM OS MESMOS NOMES DE VARIÁVEIS, APENAS EXPANDINDO A VALIDAÇÃO
+    const perfilAtual = usuario?.perfil || usuario?.papel;
 
-    // Regra: Criador (Professor) e Líder alteram prioridade e data a qualquer momento
+    const ehProfessor = 
+        perfilAtual === "professor" || 
+        perfilAtual === "teacher" || 
+        perfilAtual === "superAdmin" || 
+        perfilAtual === "admin";
+
+    const ehLider = perfilAtual === "lider" || perfilAtual === "leader";
+
+    const ehAlunoComum = !ehProfessor && !ehLider;
+
+    // Regra: Criador (Professor/Admin) e Líder alteram prioridade e data a qualquer momento
     const podeAlterarMetadados = ehProfessor || ehLider;
 
     // Regra: Status pode ser alterado por todos, EXCETO mandar para "return" que é restrito ao Professor/Líder
@@ -101,6 +110,7 @@ function TaskModal({ tarefa, fechar, onSalvar }) {
             alert(`❌ Erro de Validação: ${error.message}`);
         }
     }
+
     return (
         <div className="modal-overlay">
             {/* Ajuste crítico de Layout: adicionado estilo inline para evitar estouro de tela */}
