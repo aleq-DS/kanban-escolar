@@ -103,7 +103,7 @@ export default function TeacherManagement({
           <tr style={{ textAlign: "left", borderBottom: "2px solid #eaeaea", color: "#5e6c84" }}>
             <th style={{ padding: "10px" }}>Professor(a)</th>
             <th style={{ padding: "10px" }}>E-mail</th>
-            <th style={{ padding: "10px" }}>Unidades Permissadas</th>
+            <th style={{ padding: "10px" }}>Unidades Permitidas</th>
             <th style={{ padding: "10px" }}>Ações</th>
           </tr>
         </thead>
