@@ -26,6 +26,7 @@ function Dashboard() {
   const [listaUsuarios, setListaUsuarios] = useState([]);
   const [listaGrupos, setListaGrupos] = useState([]);
   const [listaEscolas, setListaEscolas] = useState([]);
+  const [listaTarefas, setListaTarefas] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
   const [escolaAtiva, setEscolaAtiva] = useState("");
@@ -123,6 +124,44 @@ function Dashboard() {
 
     return () => unsubscribeUsuarios();
   }, []);
+
+  // 4. Firebase - Tarefas (Busca em tempo real para cálculo dinâmico do progresso)
+  useEffect(() => {
+    const unsubscribeTarefas = onSnapshot(
+      collection(db, "tarefas"),
+      (snapshot) => {
+        const tarefasData = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setListaTarefas(tarefasData);
+      },
+      (error) => console.error("Erro ao buscar tarefas:", error)
+    );
+
+    return () => unsubscribeTarefas();
+  }, []);
+
+  // Cálculo Dinâmico do Progresso do Grupo
+  const calcularProgressoGrupo = useCallback(
+    (grupoDocId) => {
+      const tarefasDoGrupo = listaTarefas.filter(
+        (t) =>
+          String(t.grupo) === String(grupoDocId) ||
+          String(t.grupoId) === String(grupoDocId) ||
+          String(t.projetoId) === String(grupoDocId)
+      );
+
+      if (tarefasDoGrupo.length === 0) return 0;
+
+      const concluidas = tarefasDoGrupo.filter(
+        (t) => t.status === "done" || t.status === "concluido"
+      ).length;
+
+      return Math.round((concluidas / tarefasDoGrupo.length) * 100);
+    },
+    [listaTarefas]
+  );
 
   // Contagem de Integrantes por Grupo
   const contagemIntegrantesPorGrupo = useMemo(() => {
@@ -442,7 +481,7 @@ function Dashboard() {
                 id={grupo.id}
                 nome={grupo.nome}
                 integrantes={`${contagemIntegrantesPorGrupo[String(grupo.docId)] || 0} estudante(s)`}
-                progresso={grupo.progresso}
+                progresso={calcularProgressoGrupo(grupo.docId)}
                 podeExcluir={ehProfessor}
                 onExcluir={() => excluirGrupo(grupo.docId, grupo.nome)}
               />
